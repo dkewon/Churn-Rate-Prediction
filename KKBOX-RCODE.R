@@ -1,10 +1,4 @@
 
-#Averages per variable, per user_id(msno) 
-#Number of uses= count dates
-#Max date  
-#Uses per month  
-#We can compare this date with expiration date.
-#How many days without playing any song before the expiration date
 install.packages("dplyr")
 library(dplyr)
 install.packages("lubridate")
@@ -42,5 +36,24 @@ demo$msno  <- NULL
 colnames(demo)[1] <- "msno"
 demo$date  <- NULL
 
+# I can merge columns and make less than 50% and more than 50% and also those who listened a song 100%(7 columns to 3)
+less_than_50<-rowMeans(demo[c('num_25', 'num_50')], na.rm=TRUE)
+more_than_50<-rowMeans(demo[c('num_75', 'num_985')], na.rm=TRUE)
+more_than_98<-rowMeans(demo[c('num_100', 'num_unq')], na.rm=TRUE)
+  
+demo<- cbind(demo, less_than_50)
+demo<- cbind(demo, more_than_50)
+demo<- cbind(demo,more_than_98)
+demo$num_25  <- NULL
+demo$num_50  <- NULL
+demo$num_75  <- NULL
+demo$num_985  <- NULL
+demo$num_100  <- NULL
+demo$num_unq  <- NULL
+
+colnames(demo)[4]<-"between_50_98"
+
+
+#write.csv(logs.test,file = "C:/Users/Saeed/Desktop/kkbox/logs.test.csv")
 
 
