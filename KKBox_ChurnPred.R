@@ -13,11 +13,12 @@ install.packages("yaml")
 library(data.table)
 library(dplyr)
 library(plyr)
+library(fastDummies)
 
 #Define working directory
 setwd("C:/Users/dtuiran/Documents/Machine Learning/Group Project/Data")
 
-#Reading the data provided by Keegle
+##########################Reading the data ############################################################
 
 # Train: Subscription Expiration date in February, prediction for March
 train<-fread("train.csv")
@@ -56,23 +57,40 @@ length(unique(transactions$msno))
 #daily user logs describing listening behaviors of a user. 
 #Data collected until 2/28/2017.
 user_logs<-fread("user_logs.csv")
-user_logs<-user_logs[order(msno),]
+#Unique id 2.140.938
+length(unique(user_logs$msno))
+
+
+View(user_logs[1:1000,])
+
 
 #contains the user logs data until 3/31/2017.
 #user_logs2<-fread("user_logs_v2.csv")
 #View(user_logs[1:100,])
 
 #user information, with out exp date from members 
-#members<-fread("members_v3.csv")
+members<-fread("members_v3.csv")
 #View(members[1:100,])
 
 
-##########################################
 
-#Subset of data 
-trant<-as.data.frame(transactions[1:5000,])
-length(unique(trant$msno))
+##########################Users_logs####################
+#Uses_logs preprocessing
 
+
+user_logs.new <-user_logs[ , .(nbr_logs = length(date),
+                           last_log = max(date),
+                           num_25.mean = mean(num_25),
+                           num_50.mean = mean(num_50),
+                           num_75.mean = mean(num_75),
+                           num_985.mean = mean(num_985),
+                           num_100.mean = mean(num_100),
+                           num_uniques = mean(num_unq),
+                           total_sec.mean = mean(total_secs)),by = .(msno)]
+
+user_logs.new$last_log <- as.Date(as.character(user_logs.new$last_log) ,format= "%Y%m%d" , origin = "19700101")
+
+##########################Transactions########################################################################
 # Transactions preprosesing
 
 #payment method
@@ -105,13 +123,8 @@ transactions$autorenew_not_cancel<-ifelse((transactions$is_auto_renew == 1) &
 transactions$notautorenew_cancel<-ifelse((transactions$is_auto_renew == 0) & 
                                             (transactions$is_cancel == 1) , 1, 0)
 
-
 #Creating new variable  pay_dif = Plan_list_price - actual_amount_paid
 transactions$pay_dif <- transactions$plan_list_price- transactions$actual_amount_paid
-
-
-View(transactions[1:1000,])
-
 
 #Get last observation for msno","is_auto_renew","autorenew_not_cancel","notautorenew_cancel by Id(msno)
 transactions.unique<-transactions[,c("msno","actual_amount_paid", "payment_plan_days","is_auto_renew","autorenew_not_cancel","notautorenew_cancel")]
@@ -148,10 +161,7 @@ transactions_new$is_discount <- ifelse(transactions_new$pay_dif > 0, 1 ,0)
 
 
 # Create dummy variables for payment method
-
-install.packages("fastDummies")
-library("fastDummies")
-
+#install.packages("fastDummies")
 
 payment_method<-transactions[,c("msno","payment_method_id")]
 payment_method<-payment_method[, .SD[.N], by =msno]
@@ -162,12 +172,91 @@ payment_method$payment_method_id<- NULL
 transactions.final<-merge(x = transactions.unique,y=transactions_new, by="msno")
 transactions.final<-merge(x= transactions.final, y= payment_method, by="msno")
 
+#write.csv(transactions.final,file = "transactions_final.csv")
 
-write.csv(transactions.final,file = "transactions_final.csv")
+##########################Members############################################################################################
+#Members preprocessing
+length(unique(members$msno))
+View(members[1:1000,])
 
 
-View(transactions[transactions$msno =="UkDFI97Qb6+s2LWcijVVv4rMAsORbVDT2wNXF0aVbns=",])
-View(transactions.final[transactions.final$msno =="UkDFI97Qb6+s2LWcijVVv4rMAsORbVDT2wNXF0aVbns=",])
+##################Users
+#to verify if there are duplicates
+#duporno<-data.frame(table(members_v3$msno))
+#members<-members_v3[!duplicated(members_v3$msno), ] #no duplicates
+#missing values
+#colSums(is.na(members_v3)) # only gender-4429505
+
+##########################City
+options(scipen=999)
+cityt<-data.frame(table(members$city))
+#city frequency
+ggplot(cityt, aes(x = as.character(cityt$Var1), y = cityt$Freq)) + geom_bar(stat="identity") +
+  labs(y = "Frequency", x='City')
+#most users from city1. Would it be still useful to create dummies?
+#members<-dummy(members_v3$city, sep = ".")
+#members<-data.frame(members)
+
+#turning all other cities into 0
+members$city[members$city!=1] <- 0
+
+
+#Age
+#age frequency
+aget<-data.frame(table(members$bd)) #-7168 to 2016 very messy
+#age_sub<-subset(members_v3, bd>=0 & bd<=120)
+options(scipen=999)
+plot(aget$Freq)
+boxplot(Freq~Var1,data=aget)
+summary(aget)
+
+#replace odd values with 0
+members$bd[members$bd>=80|members$bd<10] <- 0 #age range 10 to 80 and 0 as invalid values 
+hist(members$bd) #compare how age influences churn=0 | churn=1
+
+
+#Gender
+#male 1 and female 2
+members$gender[members$gender=="male"] <- 1 
+members$gender[members$gender=="female"] <- 2 
+# since more than half of the users didn't identify their genders, it will be very hard to replace them with numbers;keeping them as they are 
+members$gender[members$gender == ""] <- 0
+
+#making dummies for male and female (# of dum= 3-1=2)
+resultsgen <- fastDummies::dummy_cols(members, select_columns = "gender", remove_first_dummy = TRUE)
+resultsgen[,2:6] <- NULL
+members<-merge(members, resultsgen, by = "msno")
+
+# Register_via
+registration<-data.frame(table(members$registered_via))
+ggplot(registration, aes(x = as.character(registration$Var1), y = registration$Freq)) + geom_bar(stat="identity") +
+  labs(y = "Frequency", x='Registration Platform')
+# there is one -1. It was replaced with mode 4
+members$registered_via[members$registered_via==-1] <- 4 
+# creating dummies 
+results <- fastDummies::dummy_cols(members, select_columns = "registered_via")
+results[,2:5] <- NULL
+members<-merge(members, results, by.x = "msno", by.y = "msno")
+
+# Regis_init
+table(members$registration_init_time) #20040326 to 20170429
+#Changing numeric into date (ex.20160101 into 2016-01-01)
+regis_init_time<-(as.Date(as.character(members$registration_init_time), format="%Y%m%d"))
+regis_init_time<-data.frame(regis_init_time)  
+members<-cbind(members,regis_init_time)
+
+
+
+
+##########################Merge_all###################
+
+
+train_basetable<-merge(transactions.final,members,by ="msno", all.x = TRUE)
+train_basetable<-merge(train_basetable,user_logs.new, by= "msno",all.x = TRUE)
+
+
+
+
 
 
 #LOS = Max(expire_date) - reg_initialdate 
