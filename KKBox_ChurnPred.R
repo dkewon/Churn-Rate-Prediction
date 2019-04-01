@@ -5,6 +5,8 @@
 #Specifically, we want to forecast if a user make a new service subscription transaction within 30 days 
 #after the current membership expiration date.
 
+
+########################## Installing necessary packages ####################
 install.packages("data.table")
 install.packages("dplyr")
 install.packages("plyr")
@@ -23,9 +25,8 @@ setwd("C:/Users/dtuiran/Documents/Machine Learning/Group Project/Data")
 # Train: Subscription Expiration date in February, prediction for March
 train<-fread("train.csv")
 
-head(train)
 #uniques id 992.931
-length(unique(train$msno))
+#length(unique(train$msno))
 
 #Expiration for March, prediction for April
 trainv2<-fread("train_v2.csv")
@@ -36,37 +37,34 @@ length(unique(trainv2$msno))
 # Test data, predictions for April 2017 
 test<-fread("sample_submission_zero.csv")
 
-# Test data, predictions for April 2017 
-test_v2<-fread("sample_submission_v2.csv")
+# Test data, 
+#test_v2<-fread("sample_submission_v2.csv")
 
 # transactions of users up until 2/28/2017.
-transactions<-fread("transactions.csv")
-View(transactions[1:100,])
-
-
-#2.363.626 uniques id
-length(unique(transactions$msno))
-
-#newdata <- transactions[order(msno),]
-#View(newdata[1:100,])
+transactions1<-fread("transactions.csv")
+#View(transactions[1:100,])
 
 # transactions data until 3/31/2017.
-#transactions2<-fread("transactions_v2.csv")
+transactions2<-fread("transactions_v2.csv")
 #View(transactions2[1:100,])
+
+
+transactions<-rbind.data.frame(transactions1,transactions2)
+
 
 #daily user logs describing listening behaviors of a user. 
 #Data collected until 2/28/2017.
-user_logs<-fread("user_logs.csv")
+user_logs1<-fread("user_logs.csv")
 #Unique id 2.140.938
-length(unique(user_logs$msno))
-
-
-View(user_logs[1:1000,])
+#length(unique(user_logs$msno))
 
 
 #contains the user logs data until 3/31/2017.
-#user_logs2<-fread("user_logs_v2.csv")
+user_logs2<-fread("user_logs_v2.csv")
 #View(user_logs[1:100,])
+
+user_logs<-rbind.data.frame(user_logs1,user_logs2)
+
 
 #user information, with out exp date from members 
 members<-fread("members_v3.csv")
@@ -89,6 +87,9 @@ user_logs.new <-user_logs[ , .(nbr_logs = length(date),
                            total_sec.mean = mean(total_secs)),by = .(msno)]
 
 user_logs.new$last_log <- as.Date(as.character(user_logs.new$last_log) ,format= "%Y%m%d" , origin = "19700101")
+
+#write.csv(user_logs.new, file= "user_logs.new.csv")
+
 
 ##########################Transactions########################################################################
 # Transactions preprosesing
@@ -134,7 +135,6 @@ transactions.unique<-transactions.unique[, .SD[.N], by =msno]
 #Amount pay per day 
 transactions.unique$amount_per_day<-transactions.unique$actual_amount_paid / transactions.unique$payment_plan_days
 transactions.unique$amount_per_day<-ifelse(is.infinite(transactions.unique$amount_per_day),transactions.unique$amount_per_day/ Inf , transactions.unique$amount_per_day)
-
 transactions.unique$payment_plan_days<-NULL
 
 
@@ -154,7 +154,6 @@ transactions_new<- transactions[ , .(
                         pay_dif = mean(pay_dif),
                         nbr_cancel =sum(is_cancel),
                         nbr_transactions = length(is_cancel)),by = .(msno)]
-
 
 #Any discount applied
 transactions_new$is_discount <- ifelse(transactions_new$pay_dif > 0, 1 ,0)
@@ -222,10 +221,11 @@ members$gender[members$gender=="female"] <- 2
 # since more than half of the users didn't identify their genders, it will be very hard to replace them with numbers;keeping them as they are 
 members$gender[members$gender == ""] <- 0
 
+
 #making dummies for male and female (# of dum= 3-1=2)
-resultsgen <- fastDummies::dummy_cols(members, select_columns = "gender", remove_first_dummy = TRUE)
-resultsgen[,2:6] <- NULL
-members<-merge(members, resultsgen, by = "msno")
+fastDummies::dummy_cols(members, select_columns = "gender", remove_first_dummy = TRUE)
+#resultsgen[,2:6] <- NULL
+#members<-merge(members, resultsgen, by = "msno")
 
 # Register_via
 registration<-data.frame(table(members$registered_via))
@@ -234,18 +234,18 @@ ggplot(registration, aes(x = as.character(registration$Var1), y = registration$F
 # there is one -1. It was replaced with mode 4
 members$registered_via[members$registered_via==-1] <- 4 
 # creating dummies 
-results <- fastDummies::dummy_cols(members, select_columns = "registered_via")
-results[,2:5] <- NULL
-members<-merge(members, results, by.x = "msno", by.y = "msno")
+fastDummies::dummy_cols(members, select_columns = "registered_via",remove_first_dummy = TRUE)
+#results[,2:10] <- NULL
+#members<-merge(members, results, by.x = "msno", by.y = "msno")
+
 
 # Regis_init
 table(members$registration_init_time) #20040326 to 20170429
+
 #Changing numeric into date (ex.20160101 into 2016-01-01)
-regis_init_time<-(as.Date(as.character(members$registration_init_time), format="%Y%m%d"))
-regis_init_time<-data.frame(regis_init_time)  
-members<-cbind(members,regis_init_time)
+members$registration_init_time<-(as.Date(as.character(members$registration_init_time), format="%Y%m%d"))
 
-
+#members<-cbind(members,regis_init_time)
 
 
 ##########################Merge_all###################
@@ -254,9 +254,38 @@ members<-cbind(members,regis_init_time)
 train_basetable<-merge(transactions.final,members,by ="msno", all.x = TRUE)
 train_basetable<-merge(train_basetable,user_logs.new, by= "msno",all.x = TRUE)
 
+#Deleting users with transactions dates in 1970
+train_basetable<-train_basetable[!(train_basetable$max_expire == "1970-01-01"),]
+
+nan_count<-as.data.frame(sapply(train_basetable, function(x) sum(is.na(x))))
+
+#Delete columns with out complete info
+train_basetable<-train_basetable[complete.cases(train_basetable), ]
 
 
+##########################Create new variables #######################################
+#LOS =Max(expire_date) - reg_initialdate 
+train_basetable$LOS <- train_basetable$max_expire - train_basetable$registration_init_time
+hist(as.numeric(train_basetable$LOS))
 
+#Number of days the user takes to start using the service, since the initial registration date
+train_basetable$start.time <- train_basetable$min_transdate - train_basetable$registration_init_time
+hist(as.numeric(train_basetable$start.time))
+train_basetable<-train_basetable[!(train_basetable$start.time < 0),]
 
+#Number of renewals
+train_basetable$renewals <- train_basetable$nbr_transactions - train_basetable$nbr_cancel
+hist(as.numeric(train_basetable$renewals))
 
-#LOS = Max(expire_date) - reg_initialdate 
+#remove variables not used for predictions
+train_basetable$max_transdate <- NULL
+train_basetable$min_transdate <- NULL
+train_basetable$max_expire <- NULL
+train_basetable$registered_via <- NULL
+train_basetable$registered_via <-NULL
+train_basetable$registration_init_time <- NULL
+train_basetable$last_log <- NULL
+
+write.csv(train_basetable, "train_basetable.csv")
+
+######################### Train data set ####################### 
