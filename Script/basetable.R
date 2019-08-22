@@ -2,9 +2,8 @@
 #### TRY
 
 # Clasiffication: KKBox Churn prediction challenge
-#predict whether a user will churn after his/her subscription expires. 
-#Specifically, we want to forecast if a user make a new service subscription transaction within 30 days 
-#after the current membership expiration date.
+#predict whether a user will churn or not after his/her subscription expires. Will a customer re-subscribe within 30 days of expiration?
+
 
 
 ########################## Installing necessary packages ####################
@@ -19,7 +18,7 @@ library(plyr)
 library(fastDummies)
 
 #Define working directory
-setwd("C:/Users/dtuiran/Documents/Machine Learning/Group Project/Data")
+setwd("C:/Users/dkewon/Documents/Machine Learning/Group Project/Data")
 
 ##########################Reading the data ############################################################
 
@@ -53,7 +52,7 @@ transactions2<-fread("transactions_v2.csv")
 transactions<-rbind.data.frame(transactions1,transactions2)
 
 
-#daily user logs describing listening behaviors of a user. 
+#daily user logs describing listening behavior of a user. 
 #Data collected until 2/28/2017.
 user_logs1<-fread("user_logs.csv")
 #Unique id 2.140.938
@@ -120,7 +119,7 @@ transactions$autorenew_not_cancel<-ifelse((transactions$is_auto_renew == 1) &
 
 
 #notAutorenew_&_cancel 
-#Binary feature to predict possible churning if auto_renew = 0 and is_cancel = 1 
+#Binary feature to predict churning if auto_renew = 0 and is_cancel = 1 
 
 transactions$notautorenew_cancel<-ifelse((transactions$is_auto_renew == 0) & 
                                             (transactions$is_cancel == 1) , 1, 0)
@@ -139,9 +138,9 @@ transactions.unique$amount_per_day<-ifelse(is.infinite(transactions.unique$amoun
 transactions.unique$payment_plan_days<-NULL
 
 
-#Max expire date per client , last date when day make transactions
+#Max expire date per client 
 #Max expire date
-#Min expire date per client , first date when day make transactions
+#Min expire date per client 
 # Mean pay diff by user
 #Total number of transactions
 #Number of cancelations
