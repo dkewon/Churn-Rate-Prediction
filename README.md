@@ -1,7 +1,7 @@
 # Predictive-Analytics-Customer-Churn-Prediction
 
 ## Objective
-By predicting the churn behavior of users (whether users re-subscribe the servive within 30 days of expiration), KK BOX (Taiwanese music streaming website) can make better operational decisions(ex. providing users with promotional deals, offering loyalty points etc.).
+By predicting the churn behavior of users (whether users re-subscribe the service within 30 days of expiration), KK BOX (Taiwanese music streaming website) can make better operational decisions(ex. providing users with promotional deals, offering loyalty points etc.).
 
 
 ## Files 
