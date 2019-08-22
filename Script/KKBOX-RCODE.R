@@ -36,7 +36,7 @@ demo$msno  <- NULL
 colnames(demo)[1] <- "msno"
 demo$date  <- NULL
 
-# I can merge columns and make less than 50% and more than 50% and also those who listened a song 100%(7 columns to 3)
+# song listening %
 less_than_50<-rowMeans(demo[c('num_25', 'num_50')], na.rm=TRUE)
 more_than_50<-rowMeans(demo[c('num_75', 'num_985')], na.rm=TRUE)
 more_than_98<-rowMeans(demo[c('num_100', 'num_unq')], na.rm=TRUE)
@@ -52,8 +52,4 @@ demo$num_100  <- NULL
 demo$num_unq  <- NULL
 
 colnames(demo)[4]<-"between_50_98"
-
-
-#write.csv(logs.test,file = "C:/Users/Saeed/Desktop/kkbox/logs.test.csv")
-
 
